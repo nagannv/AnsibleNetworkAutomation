@@ -1,0 +1,142 @@
+
+
+
+!!!
+!!! Set New Password
+!!!
+! This command sets the password users enter when typing the enable command. 
+enable password <NEW.PASSWORD>
+{% for key, value in USERACCOUNTS.items() | sort() %}
+!
+{% if 'admin' in key %}
+! The following command creates a new user named admin.
+username {{ value.USERNAME }} privilege 15 role network-admin secret <NEW.PASSWORD>
+{% endif %}
+!
+{% endfor %}
+
+!!!
+!!! SSH Permit ACL for your Data Center 
+!!! Available sequence number range 1-499
+!!!
+ip access-list ssh-only
+	15 permit tcp <YOUR.DATACENTER.NETWORK> {{ SwitchAssignments['NETWORK'] }}/{{ SwitchAssignments['CIDR'] }} eq ssh log
+
+!!!
+!!! Syslog Server
+!!!
+{% if None != SYSLOG.IPV4 %}
+{% include "syslog.j2" %}
+{%else%}
+logging host <IP address of your syslog server>
+{%endif%}
+
+
+!!!
+!!! SNMP v2
+!!!
+! Please perform any SNMP GET requests on the {{ SwitchAssignments['TOR1'] }} and {{ SwitchAssignments['TOR2'] }} IP addresses.
+no snmp-server vrf default
+snmp-server vrf MANAGEMENT 
+snmp-server community {{ SNMP['COMMUNITYRW'] }} rw
+snmp-server community {{ SNMP['COMMUNITYRO'] }} ro
+snmp-server source-interface management 1
+! Setting the SNMP trap destination
+snmp-server host <your management server's IP address> vrf MANAGEMENT version 2c {{ SNMP['COMMUNITYRO'] }}
+
+
+!!!
+!!! SNMP v3
+!!!
+! Please perform any SNMP GET requests on the {{ SwitchAssignments['TOR1'] }} and {{ SwitchAssignments['TOR2'] }} IP addresses.
+no snmp-server vrf default
+snmp-server vrf MANAGEMENT
+snmp-server group <group> v3 priv
+snmp-server user <user> <group> v3 auth sha <SHA Password> priv aes <AES Password>
+snmp-server source-interface managment 1
+! Setting the SNMP trap destination
+snmp-server host <your management server's IP address> vrf MANAGEMENT version 3 <user>
+
+!!!
+!!! TACACS
+!!!
+tacacs-server host <TACACS.SERVER1> key 0 <my.secret 1-63char>
+aaa group server tacacs+ <Group name>
+	server <TACACS.SERVER1> vrf MANAGEMENT
+! The following command instructs the switch to try to authenticate using a
+! TACACS+ server. If the server is unavailable, it will fall back to using the local
+! database of users
+aaa authentication login default group <Group name> local
+
+!!!
+!!! RADIUS
+!!!
+!!!
+radius-server key <secret 1-65char>
+radius-server host <RADIUS.SERVER1>
+aaa group server radius <Group name>
+	! use the management VRF (the default configuration uses the default VRF)
+	server <dest server IP> vrf MANAGEMENT
+source-interface management 1
+! The following command instructs the switch to try to authenticate using a
+! RADIUS server. If the server is unavailable, it will fall back to using the local
+! database of users.
+aaa authentication login default group <Group name> local
+
+
+!!!
+!!! BGP password for TOR ISLs
+!!!
+router bgp {{ BGP.ROUTER.ASN }}
+{% for peer in BGP['ROUTER']['IPV4_NEIGHBOR'] %}
+	neighbor {{ peer['ADDRESS'] }} password 0 <Enter your BGP password here.>
+{% endfor %}
+
+
+!!! 
+!!! Enable the ability to support a second border to have a different AS Number
+!!! 
+!!! Make note of the old neighbor IP address
+!!! Insert the new BGP ASN and remove the angle brackets.
+!!! Insert the old IP address and remove the angle brackets.
+!!! 
+! router bgp {{ BGP.ROUTER.ASN }}
+  neighbor BORDER-<New ASN> peer group 
+  neighbor BORDER-<New ASN> remote-as <New ASN>
+  neighbor BORDER-<New ASN> maximum-routes 12000 warning-only
+  neighbor BORDER-<New ASN> prefix-list ExternalPrefix in
+  neighbor BORDER-<New ASN> prefix-list ExternalPrefix out
+
+
+!!!
+!!! Adding ACL rules to allow multiple External Networks.
+!!!
+ip access-list CL01-RG01-SU01-Infra_IN
+  100 remark "deny NEW-External Networks (x.x.x.x/x) SwitchInfraNetwork ({{ LoopbackAssignments['SUPERNET'] }})"
+  105 deny ip x.x.x.x/x {{ LoopbackAssignments['SUPERNET'] }}
+  110 deny ip {{ LoopbackAssignments['SUPERNET'] }} x.x.x.x/x
+{% for SVI in POSTVALIDATION['SVI'] %}{% if SVI['VLANID'] == 7 %}
+  115 remark "deny NEW-External Networks (x.x.x.x/x) to {{ SVI['NETWORK'] }}/{{ SVI['CIDR'] }}"
+  120 deny ip {{ SVI['NETWORK'] }}/{{ SVI['CIDR'] }} x.x.x.x/x
+{% endif %}{% endfor %}
+  125 remark "permit NEW-External Networks (x.x.x.x/x) to any"
+  130 permit ip x.x.x.x/x any
+  135 permit ip any x.x.x.x/x
+!
+ip access-list CL01-RG01-SU01-Infra_OUT
+  100 remark "deny NEW-External Networks (x.x.x.x/x) SwitchInfraNetwork ({{ LoopbackAssignments['SUPERNET'] }})"
+  105 deny ip x.x.x.x/x {{ LoopbackAssignments['SUPERNET'] }}
+  110 deny ip {{ LoopbackAssignments['SUPERNET'] }} x.x.x.x/x
+{% for SVI in POSTVALIDATION['SVI'] %}{% if SVI['VLANID'] == 7 %}
+  115 remark "deny NEW-External Networks (x.x.x.x/x) to {{ SVI['NETWORK'] }}/{{ SVI['CIDR'] }}"
+  120 deny ip x.x.x.x/x {{ SVI['NETWORK'] }}/{{ SVI['CIDR'] }}
+{% endif %}{% endfor %}
+  125 remark "permit NEW-External Networks (x.x.x.x/x) to any"
+  130 permit ip x.x.x.x/x any
+  135 permit ip any x.x.x.x/x
+
+!!!
+!!! Limit the number of simultaneous SSH sessions
+!!!
+management ssh
+	connection limit 3

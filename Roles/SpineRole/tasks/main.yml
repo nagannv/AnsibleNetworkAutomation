@@ -1,0 +1,11 @@
+---
+
+- name: Create "{{ path.output }}"
+  file: 
+    state: directory
+    path: "{{ path.output }}"
+
+- name: Spine Base Setup
+  template: 
+    src: "{{ path.baseTemplates }}/basespine_config.j2"
+    dest: "{{ path.output }}/{{ inventory_hostname }}.conf"

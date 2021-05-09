@@ -1,0 +1,11 @@
+ name: BMC base config
+  hosts:
+    - bmc
+  remote_user: admin
+  gather_facts: no
+  connection: local
+  roles:
+    - role: BmcRole
+      path:
+       output: ./Output
+       baseTemplates: /Roles/BmcRole/templates

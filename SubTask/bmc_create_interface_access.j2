@@ -1,0 +1,39 @@
+{#########################################
+Purpose: Setup access ports
+
+Example Vars file
+---
+ETHERNET_ACCESS:
+  Unused_Port:
+    DESC: Unused_Port
+    TYPE: Ethernet
+    SHUTDOWN: True
+    VLAN: 2
+    PORT:
+      - 1/17
+      - 1/18
+########################################}
+{% for key, value in ETHERNET_ACCESS.items() | sort() %}
+!
+{% if key == 'Unused_Port_Ethernet' %}
+vlan {{ value.VLAN }}
+  name {{ value.NAME }}
+!
+{% endif %}
+{% for Thisport in value.PORT %}
+interface {{ value.TYPE }} {{ Thisport }}
+  description {{ value.DESC }}
+  switchport
+  switchport access vlan {{ value.VLAN }}
+{% if value.SHUTDOWN %}
+  shutdown
+{% else %}
+  no shutdown
+{% endif %}
+  spanning-tree portfast edge
+  no logging event link-status
+!
+{% endfor %}
+!
+{% endfor %}
+

@@ -1,0 +1,74 @@
+{################################
+Purpose:
+Create static route if BGP ASN is missing on a neighbor statement
+
+ASN (int)
+PEER_GROUP
+  NAME (string)
+  ASN (INT)
+IPV4_NEIGHBOR
+  ADDRESS (ip address)
+  PEER_GROUP (string)
+  ASN (int)
+  DELETE (boolean)
+
+Output:
+!!!
+!!! Static Route Border 10.10.234.16
+!!!
+ip route 0.0.0.0/0 10.10.234.16
+################################
+Example:
+---
+BGP:
+  FTOS:
+    ASN: 64738
+    PEER_GROUP:
+    - NAME: BORDER
+      ASN:
+    IPV4_NEIGHBOR:
+    - ADDRESS: 10.10.234.16
+      PEER_NAME: BORDER
+      ASN:
+      DELETE: False
+      PREFIX_NAME: exportlist
+      PREFIX_DIRECTION: out
+################################}
+{# OLD WAY
+{% for nb in item.value.IPV4_NEIGHBOR %}
+{% if nb.ASN == None or nb.ASN == '' %}
+!!!
+!!! Static Route {{ nb.PEER_NAME }} {{ nb.ADDRESS }}
+!!!
+ip route 0.0.0.0/0 {{ nb.ADDRESS }}
+!!!
+!!! Redistribute Static Routes on BGP
+!!!
+router bgp {{ item.value.ASN }}
+redistribute static
+{% endif %}
+{% endfor %}
+#}
+{% if borderConnectivity ==  "Static Routing" %}
+{% for bgp in BGP['ROUTER']['IPV4_NEIGHBOR'] %}
+{% if (( bgp.ASN == '' or bgp.ASN == None or bgp.ASN == '""') is sameas True) %}
+!
+ip route 0.0.0.0/0 {{ bgp['ADDRESS'] }}
+{% endif %}
+{% endfor %}
+!
+ip prefix-list IPv4-DEFAULT seq 10 permit 0.0.0.0/0
+route-map IPv4-DEFAULT permit 10
+  match ip address prefix-list IPv4-DEFAULT
+!
+!!!
+!!! Set Null route
+!!!
+{% for PREFIX in PREFIXLIST['ExternalPrefix']['LIST'] %}
+{% if PREFIX['IPV4']['ADDRESS'] != 'any' %}
+ip route {{ PREFIX['IPV4']['ADDRESS'] }}/{{ PREFIX['IPV4']['CIDR'] }} null 0 name {{ PREFIX['NETWORKNAME'] }}
+{% endif %}
+{% endfor %}
+{% endif %}
+!{{ '\n' }}
+

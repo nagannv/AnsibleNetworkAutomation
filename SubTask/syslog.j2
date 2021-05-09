@@ -1,0 +1,20 @@
+{########################################
+Purpose: syslog
+
+Example:
+logging server 10.240.175.89 
+---
+SYSLOG:
+  IPV4: 10.240.175.89
+
+########################################}
+{% if SYSLOG is defined %}
+{% if None != SYSLOG['IPV4'] %}
+logging host {{ SYSLOG['IPV4'] }}
+{% if '-bmc' in inventory_hostname.lower() %}
+! logging source-interface vlan 5
+{% else %}
+! logging source-interface management 1
+{% endif %}
+{% endif %}
+{% endif %}

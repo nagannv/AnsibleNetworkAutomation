@@ -1,0 +1,66 @@
+!
+errdisable recovery cause bpduguard
+errdisable recovery cause link-flap
+errdisable recovery interval 600
+!
+logging console debugging
+logging format timestamp traditional year
+!
+aaa authorization exec default local
+!
+hostname {{ inventory_hostname }}
+!
+{# NTP Settings #}
+{% include path.relative_majorVersion+"/inject_time.j2" %}
+!
+no aaa root
+!
+{% for key, value in USERACCOUNTS.items() | sort() %}
+username {{ value.USERNAME }} privilege 15 role network-admin secret 0 {{ value.PASSWORD }}
+{% endfor %}
+!
+!
+ip routing
+no ip icmp redirect
+!
+!
+banner login
+ 
+NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE
+Unauthorized access and/or use prohibited.
+All access and/or use subject to monitoring.
+NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE
+ 
+EOF
+
+banner motd
+
+Host name: {{ inventory_hostname }}
+BUILDNUMBER: {{ BUILDNUMBER }}
+
+EOF
+!
+management console
+   ! Disconnect the console session after 10 minutes of inactivity.
+   idle-timeout 10
+!
+management ssh
+   ip access-group ssh-only in
+   ! Disconnect the SSH session after 10 minutes of inactivity.
+   idle-timeout 10
+   authentication mode password
+   ! Send a keepalive every 60 seconds.
+   client-alive interval 60
+   ! Strengthen the message-authentication code to omit the use of SHA-1.
+   mac hmac-sha2-512-etm@openssh.com hmac-sha2-256-etm@openssh.com hmac-sha2-512 hmac-sha2-256
+   ! Remove ed25519 from the list of available public keys. Although secure, it is not an approved for use with FIPS 140-2.
+   hostkey server rsa ecdsa-nistp521
+   ! Remove Diffie-Hellman Group 14.
+   key-exchange ecdh-sha2-nistp521 ecdh-sha2-nistp256 ecdh-sha2-nistp384
+!
+{# Loopback #}{% include path.relative_majorVersion+"/create_int_loopback.j2" %}
+{# P2P Interfaces #}{% include path.relative_majorVersion+"/create_int_p2p_ipv4.j2" %}
+{# Interface Vlan #}{% include path.relative_majorVersion+"/create_Int_vlan_ipv4.j2" %}
+{# Access ports #}{% include path.relative_majorVersion+"/bmc_create_interface_access.j2" %}
+{# BGP #}{% include path.relative_majorVersion+"/bmc_bgp.j2" %}
+{# ACL V2#}{% include path.relative_majorVersion+"/eos_aclv2.j2" %}

@@ -1,0 +1,71 @@
+
+terminal length 24
+!
+switchport default mode routed
+!
+switch forwarding-mode store-and-forward
+!
+!
+errdisable recovery cause bpduguard
+errdisable recovery cause link-flap
+errdisable recovery interval 600
+!
+no logging console
+logging format timestamp traditional year
+!
+aaa authorization exec default local
+!
+hostname {{ inventory_hostname }}
+!
+snmp-server community {{ SNMP['COMMUNITYRW'] }} rw
+snmp-server community {{ SNMP['COMMUNITYRO'] }} ro
+no snmp-server vrf default
+snmp-server vrf MANAGEMENT
+!
+{# NTP Settigns #}
+{% include path.relative_majorVersion+"/inject_time.j2" %}
+!
+{% for key, value in USERACCOUNTS.items() | sort() %}
+no aaa root
+!
+username {{ value.USERNAME }} privilege 15 role network-admin secret 0 {{ value.PASSWORD }}
+{% endfor %}
+!
+vrf instance MANAGEMENT
+   description VRF to support management interface
+!
+!
+!
+{#
+    ACL to restrict ssh traffic to mgmt port.
+#}
+!
+ip routing
+no ip icmp redirect
+ip routing vrf MANAGEMENT
+!
+banner motd
+ 
+NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE
+hostname {{ inventory_hostname }}
+BUILDNUMBER: {{ BUILDNUMBER }}
+Unauthorized access and/or use prohibited.
+All access and/or use subject to monitoring.
+NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE  NOTICE
+ 
+EOF
+!
+management console
+   idle-timeout 60
+!
+management ssh
+   ip access-group ssh-only in
+   idle-timeout 60
+   authentication mode password
+!
+!
+{# Loopback #}{% include path.relative_majorVersion+"/create_int_loopback.j2" %}
+{# Management #}{% include path.relative_majorVersion+"/mgmt_ipv4.j2" %}
+{# P2P Interfaces #}{% include path.relative_majorVersion+"/create_int_p2p_ipv4.j2" %}
+{# BGP #}{% include path.relative_majorVersion+"/bgp.j2" %}
+{# IP Prefix-List #}{% include path.relative_majorVersion+"/route_prefix_list.j2" %}

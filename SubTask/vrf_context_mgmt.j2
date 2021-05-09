@@ -1,0 +1,3 @@
+{% for key, value in MGMT.items() | sort() %}
+  ip route vrf MANAGEMENT 0.0.0.0/0 {{ value.IPV4.GATEWAY }}
+{% endfor %}

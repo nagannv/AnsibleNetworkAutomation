@@ -1,0 +1,38 @@
+{#########################################
+Purpose: 
+Generate time values for a config.
+
+Example:
+clock timezone PST -08 00 
+clock summer-time PDT recurring 1 Sun Mar 02:00 1 Sun Nov 02:00 60 
+
+---
+TIME:
+  TIMEZONE:
+    HOUR: "08"
+    MIN: "00"
+    ZONE: "UTC"
+    DIRECTION: "minus"
+  NTP:
+    - "10.24.22.20"
+    - "10.1.4.74"
+#########################################}
+{% if TIME is defined %}
+{% if TIME.TIMEZONE.ZONE is defined %}
+clock timezone {{ TIME.TIMEZONE.ZONE }}
+{% else %}
+clock timezone PST8PDT
+{% endif %}
+{% endif %}
+{% for thisip in TIME.NTP %}
+{% if '-bmc' in inventory_hostname.lower() %}
+ntp server {{ thisip }}
+{% else %}
+ntp server vrf MANAGEMENT {{ thisip }}
+{% endif %}
+{% endfor %}
+{% if '-bmc' in inventory_hostname.lower() %}
+ntp local-interface vlan 5
+{% else %}
+ntp local-interface vrf MANAGEMENT management 1
+{% endif %}

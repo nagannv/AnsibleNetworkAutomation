@@ -1,0 +1,50 @@
+{#########################################
+# Purpose:
+# Create PREFIXLIST 
+#
+# Output:
+#  ip prefix-list TEST deny 10.11.128.0/17 le 32
+#
+# Variable file example:
+# ---
+PREFIXLISTV2:
+    NAME: "ExternalPrefix"
+    BORDERROUTING: "BGP Routing"
+    LIST:
+    - PERMIT: False
+      DELETE: False
+      NETWORKNAME: Loopback_Rack01/Tor1
+      IPV4:
+        ADDRESS: 100.71.0.152
+        CIDR: 32
+        MASK: 255.255.255.255
+        INVERSEMASK: 0.0.0.0
+      LENGTH:
+        OPERATOR: le
+        CIDR: 32
+    - PERMIT: False
+      DELETE: False
+      NETWORKNAME: Loopback_Rack01/Tor2
+      IPV4:
+        ADDRESS: 100.71.0.153
+        CIDR: 32
+        MASK: 255.255.255.255
+        INVERSEMASK: 0.0.0.0
+      LENGTH:
+        OPERATOR: le
+        CIDR: 32
+#########################################}
+{% if PREFIXLISTV2 is defined %}
+{% if "BGP" in PREFIXLISTV2['BORDERROUTING'] %}
+!!!
+!!! prefix-list {{ PREFIXLISTV2['NAME'] }}
+!!!
+{% for ITEM in PREFIXLISTV2['LIST'] %}
+{% if ITEM['PERMIT'] | bool %}{# if PERMIT == True #}
+ip prefix-list {{ PREFIXLISTV2['NAME'] }} permit {{ ITEM['IPV4']['ADDRESS'] }}/{{ ITEM['IPV4']['CIDR'] }} {{ ITEM['LENGTH']['OPERATOR'] }} {{ ITEM['LENGTH']['CIDR'] }}
+{% else %}
+ip prefix-list {{ PREFIXLISTV2['NAME'] }} deny {{ ITEM['IPV4']['ADDRESS'] }}/{{ ITEM['IPV4']['CIDR'] }} {{ ITEM['LENGTH']['OPERATOR'] }} {{ ITEM['LENGTH']['CIDR'] }}
+{% endif %}
+{% endfor %}{# for ITEM in PREFIXLISTV2['LIST'] #}
+{% endif %}
+{% endif %}{# if PREFIXLISTV2 is defined #}

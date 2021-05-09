@@ -1,0 +1,28 @@
+{#
+########################################
+Purpose:
+Create loopback interfaces on the Cisco Nexus Switch 
+
+
+Variable file example:
+---
+# Loopback Port
+LOOPBACK:
+  0:
+    DELETE: FALSE
+    DESC: INFRA:Loop:Lo0
+    IPV4:
+      ADDRESS: 10.10.224.97
+      CIDR: 32
+
+
+########################################
+#}
+{% for key,value in LOOPBACK.items() | sort() %}
+!
+interface loopback{{ key }}
+  description {{ value.DESC }}
+  ip address {{ value.IPV4.ADDRESS }}/{{ value.IPV4.CIDR }}
+  no shutdown
+!
+{% endfor %}

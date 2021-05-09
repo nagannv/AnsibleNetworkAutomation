@@ -1,0 +1,11 @@
+ name: SPINE base config
+  hosts:
+    - spine
+  remote_user: admin
+  gather_facts: no
+  connection: local
+  roles:
+    - role: SpineRole
+      path:
+       output: ./Output
+       baseTemplates: /Roles/SpineRole/templates

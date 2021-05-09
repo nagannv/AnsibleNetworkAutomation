@@ -1,0 +1,45 @@
+{########################################
+Purpose: 
+Create a Switch Virtual Interface (SVI)
+
+Output:
+vlan 5
+name SwitchMgmt
+interface Vlan 5
+ description 10.10.236.105:Switch Management
+ ip address 10.10.236.105/29
+ no shutdown
+
+Variables file Example:
+---
+VLAN:
+  5:
+    DELETE: False
+    NAME: SwitchMgmt
+    SHUTDOWN: False
+    INTERFACE:
+      SHUTDOWN: False
+      DESC: Switch Management
+      IPV4:
+        ADDRESS: 10.10.236.105
+        CIDR: 29
+
+########################################}
+{% for key, value in VLAN.items() | sort () %}
+!
+vlan {{ key }}
+name {{ value.NAME }}
+!
+interface vlan {{ key }}
+description {{ value.INTERFACE.DESC }}
+{% if value['MTU'] is defined %}
+mtu {{ value['MTU'] }}
+{% endif %}
+ip address {{ value.INTERFACE.IPV4.ADDRESS }}/{{ value.INTERFACE.IPV4.CIDR }}
+no autostate
+no shutdown
+{% if value.INTERFACE.SHUTDOWN %}
+  shutdown
+{% endif %}
+!
+{% endfor %}

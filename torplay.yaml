@@ -1,0 +1,11 @@
+ name: TOR base config
+  hosts:
+    - tor
+  remote_user: admin
+  gather_facts: no
+  connection: local
+  roles:
+    - role: TorRole
+      path:
+       output: ./Output
+       baseTemplates: /Roles/TorRole/templates

@@ -1,0 +1,57 @@
+{#
+########################################
+Purpose:
+Create L3 IPv4 P2P interfaces on the ToR.
+
+
+
+Output:
+interface Ethernet36
+   description INFRA:PTP:SSP
+   mtu 9100
+   no switchport
+   ip address 10.10.226.9/31
+   no shutdown
+
+Variable file example:
+---
+# L3 P2P Port
+P2P:
+  36:
+    SHUTDOWN: False
+    DESC: INFRA:PTP:SSP
+    TYPE: Ethernet
+    MTU: 9100
+    IPV4:
+      ADDRESS: 10.10.0.1
+      CIDR: 31
+
+########################################
+#}
+{% for key,value in P2P.items() | sort() %}
+!
+interface {{ value.TYPE }} {{ key }}
+  no switchport
+  mtu {{ value.MTU}}
+  description {{ value.DESC }}
+  ip address {{ value.IPV4.ADDRESS }}/{{ value.IPV4.CIDR }}
+{% if value['APPLY_POLICY'] is defined %}
+  {% if value['APPLY_POLICY'] | bool %}
+  qos trust cos
+  priority-flow-control on
+  priority-flow-control priority 3 no-drop
+  tx-queue 3
+     bandwidth percent 50
+     random-detect drop minimum-threshold 150 kbytes maximum-threshold 150 kbytes drop-probability 100
+  {% endif %}
+{% endif %}
+{% if value.SHUTDOWN %}
+  shutdown
+{% else %}
+  no shutdown
+{% endif %}
+{% if value.SPEED %}
+{{ value.SPEED }}
+{% endif %}
+!
+{% endfor %}

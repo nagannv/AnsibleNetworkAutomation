@@ -1,0 +1,92 @@
+terminal length 24
+!
+switchport default mode routed
+!
+switch forwarding-mode store-and-forward
+!
+errdisable recovery cause bpduguard
+errdisable recovery cause link-flap
+errdisable recovery interval 600
+!
+{# transceiver qsfp default-mode 4x10G #}
+!
+logging monitor informational
+logging console debugging
+logging format timestamp traditional year
+!
+aaa authorization exec default local
+!
+hostname {{ inventory_hostname }}
+!
+{# NTP Settings #}
+{% include path.relative_majorVersion+"/inject_time.j2" %}
+!
+banner login
+
+NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE  NOTICE
+Unauthorized access and/or use prohibited.
+All access and/or use subject to monitoring.
+NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE   NOTICE  NOTICE
+
+EOF
+
+banner motd
+
+hostname {{ inventory_hostname }}
+BUILDNUMBER: {{ BUILDNUMBER }}
+
+EOF
+!
+no spanning-tree vlan-id 4094
+spanning-tree mst 0-1 priority {{ STP.PRIORITY.MST01 }}
+spanning-tree mst 2 priority {{ STP.PRIORITY.MST2 }}
+!
+spanning-tree mst configuration
+   revision 1
+   instance 1 vlan  1-1999
+   instance 2 vlan  2000-4094
+!
+no aaa root
+!
+{% for key, value in USERACCOUNTS.items() | sort() %}
+username {{ value.USERNAME }} privilege 15 role network-admin secret 0 {{ value.PASSWORD }}
+{% endfor %}
+{# NTP Settings #}
+{% include path.relative_majorVersion+"/inject_time.j2" %}
+
+!
+vrf instance MANAGEMENT
+   description VRF to support management interface
+!
+!
+ip routing
+ip routing vrf MANAGEMENT
+!
+management console
+   ! Disconnect the console session after 10 minutes of inactivity.
+   idle-timeout 10
+!
+management ssh
+   ip access-group ssh-only vrf MANAGEMENT in
+   ! Disconnect the SSH session after 10 minutes of inactivity.
+   idle-timeout 10
+   authentication mode password
+   ! Send a keepalive every 60 seconds.
+   client-alive interval 60
+   ! Strengthen the message-authentication code to omit the use of SHA-1.
+   mac hmac-sha2-512-etm@openssh.com hmac-sha2-256-etm@openssh.com hmac-sha2-512 hmac-sha2-256
+   ! Remove ed25519 from the list of available public keys. Although secure, it is not an approved for use with FIPS 140-2.
+   hostkey server rsa ecdsa-nistp521
+   ! Remove Diffie-Hellman Group 14.
+   key-exchange ecdh-sha2-nistp521 ecdh-sha2-nistp256 ecdh-sha2-nistp384
+!
+{# Loopback #}{% include path.relative_majorVersion+"/create_int_loopback.j2" %}
+{# Management #}{% include path.relative_majorVersion+"/mgmt_ipv4.j2" %}
+{# P2P Interfaces #}{% include path.relative_majorVersion+"/create_int_p2p_ipv4.j2" %}
+{# BGP #}{% include path.relative_majorVersion+"/bgp.j2" %}
+{# Static route #}{% include path.relative_majorVersion+"/staticroute.j2" %}
+{# IP Prefix-List #}{% include path.relative_majorVersion+"/route_prefix_list.j2" %}
+{# Trunk ports #}{% include path.relative_majorVersion+"/create_ethernet_trunk.j2" %}
+{# Access ports #}{% include path.relative_majorVersion+"/create_interface_access.j2" %}
+{# MLAG #}{% include path.relative_majorVersion+"/mlag.j2" %}
+{# ACL V2#}{% include path.relative_majorVersion+"/eos_aclv2.j2" %}

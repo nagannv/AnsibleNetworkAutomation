@@ -1,0 +1,7 @@
+---
+
+- name: TOR Base Setup "{{ inventory_hostname }}"
+  template: 
+    src: "{{ path.baseTemplates }}/basetor_config.j2"
+    dest: "{{ path.output }}/{{ inventory_hostname }}.conf"
+    

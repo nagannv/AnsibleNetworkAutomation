@@ -1,0 +1,86 @@
+{########################################
+Purpose:
+
+
+########################################
+Example:
+---
+BGP:
+  ASN: 12345
+  ROUTER_ID: 10.11.1.1
+########################################}
+{% for key,value in BGP.items() | sort() %}
+{% if BGP is defined %}
+!!!
+!!! BGP Base {{ value.ASN }}
+!!!
+router bgp {{ value.ASN }}
+  maximum-paths 8 ecmp 8
+  bgp log-neighbor-changes
+  bgp bestpath as-path multipath-relax
+  router-id {{ value.ROUTER_ID }}
+{% endif %}
+!!!
+!!! BGP Neighbor
+!!!
+{% set writtenonce = '0' %}
+{% set RDisSET = false %}
+{# Add BGP neighbor #}
+{% for nb in value.IPV4_NEIGHBOR %}
+{% if nb.DELETE %}
+  no neighbor {{ nb.ADDRESS }} peer group {{ nb.PEER_NAME }}-{{ nb.ASN }}
+{% else %}
+{% if value.REDISTRIBUTE is defined %}
+{% if (nb.ASN == '' or nb.ASN == None) is sameas true and RDisSET is sameas true %}
+  redistribute {{ value.REDISTRIBUTE }}
+{% set RDisSET = true %}
+{% endif %}{# RDisSET is sameas true #}
+{% endif %}{# value.REDISTRIBUTE is defined #}
+{% if ( nb.ASN == '' or nb.ASN == None) is sameas false %}
+  neighbor {{ nb.PEER_NAME }}-{{ nb.ASN }} peer group 
+  neighbor {{ nb.PEER_NAME }}-{{ nb.ASN }} remote-as {{ nb.ASN }}
+  neighbor {{ nb.PEER_NAME }}-{{ nb.ASN }} maximum-routes 12000 warning-only
+{% if nb['PREFIX_NAME'] is defined %}
+  neighbor {{ nb.PEER_NAME }}-{{ nb.ASN }} prefix-list {{ nb.PREFIX_NAME }} in
+  neighbor {{ nb.PEER_NAME }}-{{ nb.ASN }} prefix-list {{ nb.PREFIX_NAME }} out
+{% endif %}{# if nb['PREFIX_NAME'] is defined #}
+
+  neighbor {{ nb.ADDRESS }} peer group {{ nb.PEER_NAME }}-{{ nb.ASN }}
+  neighbor {{ nb.ADDRESS }} description LinkTo BGP:{{ nb.ASN }}:{{ nb.PEER_NAME }}-{{ nb.ASN }}:{{ nb.ADDRESS }}
+{% endif %}{# ( nb.ASN == '' or nb.ASN == None) is sameas false #}
+{% endif %}
+{% if nb['REDISTRIBUTE_STATIC'] is defined %}
+  neighbor {{ nb.ADDRESS }} default-originate
+{% endif %}
+!
+{% endfor %}
+{% if value.MUX_IPV4_NEIGHBOR is defined %}
+{% for ThisMux in value.MUX_IPV4_NEIGHBOR %}
+  neighbor {{ ThisMux.PEER_NAME }} peer group
+  neighbor {{ ThisMux.PEER_NAME }} remote-as {{ ThisMux.ASN }}
+  neighbor {{ ThisMux.PEER_NAME }} ebgp-multihop 3
+  neighbor {{ ThisMux.PEER_NAME }} maximum-routes 5000
+  bgp listen range {{ ThisMux.ADDRESS }}/{{ ThisMux.CIDR }} peer-group {{ ThisMux.PEER_NAME }} remote-as {{ ThisMux.ASN }}
+{% endfor %}
+!!!
+!!! BGP Network
+!!!
+{% for net in value.IPV4_NETWORK %}
+{% if net.DELETE %}
+    no network {{ net.ADDRESS }}/{{ net.CIDR }}
+{% else %}
+    network {{ net.ADDRESS }}/{{ net.CIDR }}
+{% endif %}
+{% endfor %}
+{% for ThisMux in value.MUX_IPV4_NEIGHBOR %}
+{% for ThisMuxPG in value.MUX_PEER_GROUP %}
+    neighbor {{ ThisMux.PEER_NAME }} update-source {{ ThisMuxPG.ROUTER_IP}}
+{% endfor %}
+{% endfor %}
+{% endif %}{# endif value.MUX_IPV4_NEIGHBOR is defined #}
+{% for bgp in BGP['ROUTER']['IPV4_NEIGHBOR'] %}
+{% if bgp['REDISTRIBUTE_STATIC'] is defined %}
+    redistribute static route-map IPv4-DEFAULT
+{% endif %}
+{% endfor %}
+{% endfor %}

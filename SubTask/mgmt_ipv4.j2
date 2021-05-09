@@ -1,0 +1,60 @@
+{#
+########################################
+Purpose: 
+Create a MGMT interface Point-to-Point IP on the 
+Ethernet interface.
+
+Output:
+interface Management1
+   vrf MANAGEMENT
+   description :10.10.231.20/29
+   ip address 10.10.231.20/29
+   no shutdown
+ip route vrf MANAGEMENT 0.0.0.0/0 10.10.231.17
+
+JSON Variables file Example:
+{
+  "MGMT": {
+    "1": {
+      "TYPE": "Management",
+      "DESC": "",
+      "SHUTDOWN": false,
+      "IPV4": {
+        "CIDR": 29,
+        "NETWORK": "10.10.231.16",
+        "GATEWAY": "10.10.231.17",
+        "ADDRESS": "10.10.231.20"
+      }
+    }
+  }
+}
+
+---
+MGMT:
+  1:
+    TYPE: Management
+    DESC: ''
+    SHUTDOWN: False
+    IPV4:
+      CIDR: 29
+      NETWORK: 10.10.231.16
+      GATEWAY: 10.10.231.17
+      ADDRESS: 10.10.231.20
+
+########################################
+#}
+{% for key, value in MGMT.items() | sort() %}
+!
+interface {{ value.TYPE }}{{ key }}
+  vrf MANAGEMENT
+  description {{ value.DESC }}:{{ value.IPV4.ADDRESS }}/{{ value.IPV4.CIDR }}
+  ip address {{ value.IPV4.ADDRESS }}/{{ value.IPV4.CIDR }}
+{% if value.SHUTDOWN %}
+  shutdown
+{% else %}
+  no shutdown
+{% endif %}
+!
+ip route vrf MANAGEMENT 0.0.0.0/0 {{ value.IPV4.GATEWAY }}
+!
+{% endfor %}

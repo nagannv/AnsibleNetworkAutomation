@@ -1,0 +1,144 @@
+{########################################
+Purpose:
+Configure the base for MLAG and VRRP
+
+Output:
+vlan 4094
+   trunk group MLAG-PEER
+!
+interface Port-Channel101
+   description INFRA:PTP:Po101:MLAG-Peer-Link
+   switchport mode trunk
+   switchport trunk group MLAG-PEER
+!
+  interface Ethernet19
+   description INFRA:P2P:Ethernet19:MLAG Peer Link
+   channel-group 101 mode active
+   no shutdown
+  interface Ethernet20
+   description INFRA:P2P:Ethernet20:MLAG Peer Link
+   channel-group 101 mode active
+   no shutdown
+  interface Ethernet21
+   description INFRA:P2P:Ethernet21:MLAG Peer Link
+   channel-group 101 mode active
+   no shutdown
+  interface Ethernet22
+   description INFRA:P2P:Ethernet22:MLAG Peer Link
+   channel-group 101 mode active
+   no shutdown
+  interface Ethernet23
+   description INFRA:P2P:Ethernet23:MLAG Peer Link
+   channel-group 101 mode active
+   no shutdown
+  interface Ethernet24
+   description INFRA:P2P:Ethernet24:MLAG Peer Link
+   channel-group 101 mode active
+   no shutdown
+!
+interface Vlan99
+   description INFRA:P2P:VLAN99:MLAG Peer Keepalive Link
+   ip address 192.168.1.1/30
+!
+ip virtual-router mac-address de:ad:be:ef:00:01
+
+mlag configuration
+   domain-id MLAG1
+   local-interface Vlan99
+   peer-address 192.168.1.2
+   peer-link Port-Channel101
+   reload-delay 30
+
+Example:
+---
+MLAG:
+  FTOS:
+    DOMAIN: 1
+    PRIORITY: 140
+    HSRP_VERSION: hsrp version 2
+    UNITID: 0
+    PRIMARYPRIORITY: 1
+    KEEP_ALIVE:
+      PORT: Ethernet1/47
+      VRF: VPC-KEEPALIVE
+      DESTINATION: 192.168.1.2
+      SOURCE: 192.168.1.1
+      CIDR: 30
+    PORTCHANNEL:
+      ID: 101
+      NATIVE_VLAN: 4094
+    PEER_LINK_PORT:
+      - ID: 1/49
+        TYPE: Ethernet
+        DESC: 
+      - ID: 1/50
+        TYPE: Ethernet
+        DESC: 
+    VLAN:
+    - ID: 12
+      MTU: 9100
+      NAME: Management
+      ENABLE: true
+      SHUTDOWN: false
+      IPV4_HELPER:
+        - 10.10.209.255
+        - 10.10.211.255
+      IPV4:
+        SWITCH_ADDRESS: 10.30.32.66
+        GATEWAY_ADDRESS: 10.30.32.65
+        CIDR: 26
+
+########################################}
+{% for key,value in MLAG.items() | sort() %}
+!
+vlan 4094
+  trunk group MLAG-PEER
+!
+interface Port-Channel{{ value.PORTCHANNEL.ID }}
+  description INFRA:PTP:Po{{ value.PORTCHANNEL.ID }}:MLAG-Peer-Link
+  switchport mode trunk
+  switchport trunk group MLAG-PEER
+  switchport
+  no shutdown
+!
+{% for ThisPlp in value.PEER_LINK_PORT %}
+  interface {{ ThisPlp.TYPE }}{{ ThisPlp.ID }}
+  description INFRA:P2P:{{ ThisPlp.TYPE }}{{ ThisPlp.ID }}:MLAG Peer Link
+  channel-group {{ value.PORTCHANNEL.ID }} mode active
+  priority-flow-control on
+  no shutdown
+  !
+{% endfor %}
+!
+interface Vlan 4094
+  description INFRA:P2P:VLAN4094:MLAG Peer Keepalive Link
+  ip address {{ value.KEEP_ALIVE.SOURCE }}/{{ value.KEEP_ALIVE.CIDR }}
+  no shutdown
+!
+ip virtual-router mac-address de:ad:be:ef:00:01
+!
+mlag configuration
+   domain-id MLAG1
+   local-interface Vlan 4094
+   peer-address {{ value.KEEP_ALIVE.DESTINATION }}
+   peer-link Port-Channel{{ value.PORTCHANNEL.ID }}
+   reload-delay 30
+!
+{% for ThisVlan in value.VLAN %}
+vlan {{ ThisVlan.ID }}
+  name {{ ThisVlan.NAME }}
+!
+interface Vlan {{ ThisVlan.ID }}
+  mtu {{ ThisVlan.MTU }}
+  description {{ ThisVlan.NAME }}:{{ ThisVlan.IPV4.SWITCH_ADDRESS }}/{{ ThisVlan.IPV4.CIDR }}
+  no autostate
+  ip address {{ ThisVlan.IPV4.SWITCH_ADDRESS }}/{{ ThisVlan.IPV4.CIDR }}
+  ip virtual-router address {{ ThisVlan.IPV4.GATEWAY_ADDRESS }}
+{% if ThisVlan.IPV4_HELPER %}
+{% for hlpr in ThisVlan.IPV4_HELPER %}
+  ip helper-address {{ hlpr }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+!
+{% endfor %}

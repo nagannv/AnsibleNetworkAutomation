@@ -1,0 +1,60 @@
+{########################################
+Purpose: 
+Create a Switch Virtual Interface (SVI)
+
+Required Variables and Types
+key (string) 			Ethernet Port Number
+value.DESC	(string)		Port description
+value.SHUTDOWN (boolean) 		True,False
+value.QOS_TAG_ID (string) 		QOS tag string
+value.VLAN.NATIVE (int) 		Native VLAN id 
+value.VLAN.TRUNK (string)		List of VLAN id's
+
+Variables file Example:
+---
+ETHERNET_TRUNK:
+  GROUP1:
+    TYPE: Ethernet
+    DESC: example description
+    SHUTDOWN: False
+    MTU: 9216
+    QOS_TAG_ID: input_queue
+    PORT:
+      - 1
+      - 2
+    VLAN:
+      NATIVE: 7
+      TRUNK:
+        - 7
+        - 8
+        - 14
+
+########################################}
+{% for key,value in ETHERNET_TRUNK.items() | sort() %}
+{% for ThisPort in value.PORT %}
+interface Ethernet {{ ThisPort }}
+  description  {{ value.DESC }}
+  mtu {{ value.MTU }}
+{% if value.SHUTDOWN %}
+  shutdown
+{% else %}
+  no shutdown
+{% endif %}
+  switchport
+  switchport mode trunk
+  switchport trunk native vlan {{ value.VLAN.NATIVE }}
+  switchport trunk allowed vlan {{ value.VLAN.TRUNK | join(",") }}
+  dcbx mode ieee
+  priority-flow-control on
+  priority-flow-control priority 3 no-drop
+  qos trust cos
+  tx-queue 3
+    no priority
+    bandwidth percent 50
+  tx-queue 5
+    no priority
+    bandwidth percent 2
+ spanning-tree portfast
+!
+{% endfor %}
+{% endfor %}
