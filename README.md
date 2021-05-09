@@ -8,5 +8,5 @@ Automate switch and Routers configuration generation using ansible roles, play b
 Generating complex network configuration across multiple environments in uniform approach and with zero errors is possible with human, the configuration generation with example configuration. 
 
 __Tools__
-Ansible Roles & Play Books
-Jinja2 templates
+1. Ansible Roles & Play Books
+2. Jinja2 templates
